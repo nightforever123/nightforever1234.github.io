@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poll Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f1119;
+            --bg-secondary: #1a1d27;
+            --bg-card: #1e2130;
+            --text-primary: #e4e8f0;
+            --text-secondary: #8b92a5;
+            --accent: #6366f1;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --border: #2a2d3a;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .light-theme {
+            --bg-primary: #f0f2f5;
+            --bg-secondary: #ffffff;
+            --bg-card: #f8f9fa;
+            --text-primary: #1a1d27;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+            transition: background 0.5s, color 0.3s;
+        }
+        /* Кнопка языка на страницах регистрации/входа */
+        .top-right-lang {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 2000;
+        }
+        .top-right-lang .lang-btn-top {
+            padding: 10px 18px;
+            background: var(--accent);
+            border: none;
+            border-radius: 14px;
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 1px;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+        .top-right-lang .lang-btn-top:hover {
+            background: #5558e6;
+            transform: scale(1.05);
+        }
+        /* УВЕДОМЛЕНИЕ */
+        .achievement-toast {
+            position: fixed; top: 24px; right: -450px; z-index: 3000;
+            background: var(--bg-secondary); border: 2px solid var(--warning);
+            border-radius: 20px; padding: 20px 24px; display: flex;
+            align-items: center; gap: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            transition: right 0.5s; min-width: 340px; backdrop-filter: blur(20px);
+        }
+        .achievement-toast.show { right: 24px; }
+        .toast-close { position: absolute; top: 8px; right: 12px; background: rgba(255,255,255,0.1); border: none; color: var(--text-secondary); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .achievement-toast-icon { font-size: 48px; animation: bounce 0.6s ease; }
+        .achievement-toast-title { font-size: 14px; color: var(--warning); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        .achievement-toast-name { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+        .achievement-toast-desc { font-size: 13px; color: var(--text-secondary); }
+        @keyframes bounce { 0%,100%{transform:scale(1)} 25%{transform:scale(1.3)} 50%{transform:scale(0.9)} 75%{transform:scale(1.1)} }
+        @keyframes sparkle { 0%,100%{opacity:0;transform:scale(0)} 50%{opacity:1;transform:scale(1)} }
+        .sparkles { position:fixed; inset:0; pointer-events:none; z-index:2999; }
+        .sparkle { position:absolute; font-size:24px; animation:sparkle 1s ease forwards; }
+
+        .sidebar { position:fixed; top:0; left:0; width:340px; height:100vh; background:var(--bg-secondary); border-right:1px solid var(--border); z-index:1000; transform:translateX(-100%); transition:0.4s; display:flex; flex-direction:column; box-shadow:8px 0 40px rgba(0,0,0,0.2); }
+        .sidebar.open { transform:translateX(0); }
+        .sidebar-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:999; opacity:0; pointer-events:none; transition:0.3s; }
+        .sidebar-overlay.active { opacity:1; pointer-events:all; }
+        .sidebar-header { padding:28px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+        .sidebar-header h2 { font-size:20px; font-weight:700; background:linear-gradient(135deg,#6366f1,#8b5cf6); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin:0; }
+        .header-controls { display:flex; gap:8px; align-items:center; }
+        .theme-toggle { width:48px; height:28px; background:var(--bg-card); border:1px solid var(--border); border-radius:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; }
+        .lang-btn { padding:6px 12px; background:var(--accent); border:none; border-radius:14px; color:white; font-size:12px; font-weight:700; cursor:pointer; letter-spacing:1px; }
+        .sidebar-nav { flex:1; padding:16px; overflow-y:auto; }
+        .sidebar-nav-item { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:10px; cursor:pointer; transition:0.3s; color:var(--text-secondary); font-weight:500; margin-bottom:4px; }
+        .sidebar-nav-item:hover { background:var(--bg-card); color:var(--text-primary); }
+        .sidebar-nav-item.active { background:var(--accent); color:white; }
+        .sidebar-nav-item .icon { font-size:20px; width:24px; text-align:center; }
+        .sidebar-footer { padding:16px 24px; border-top:1px solid var(--border); }
+
+        .menu-btn { position:fixed; top:24px; left:24px; z-index:998; width:48px; height:48px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:14px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .menu-btn span { display:block; width:20px; height:2px; background:var(--text-primary); position:relative; transition:0.3s; }
+        .menu-btn span::before,.menu-btn span::after { content:""; position:absolute; width:20px; height:2px; background:var(--text-primary); }
+        .menu-btn span::before { top:-6px; } .menu-btn span::after { top:6px; }
+        .menu-btn.active span { background:transparent; }
+        .menu-btn.active span::before { top:0; transform:rotate(45deg); }
+        .menu-btn.active span::after { top:0; transform:rotate(-45deg); }
+
+        .main-content { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+        .app { width:100%; max-width:800px; background:var(--bg-secondary); border-radius:32px; padding:48px 40px; box-shadow:var(--shadow); border:1px solid var(--border); }
+        .hidden { display:none !important; }
+        h1 { font-size:32px; font-weight:700; text-align:center; margin-bottom:8px; background:linear-gradient(135deg,#6366f1,#8b5cf6); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+        .subtitle { text-align:center; color:var(--text-secondary); margin-bottom:32px; font-size:14px; }
+        input,textarea { width:100%; padding:14px 18px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; color:var(--text-primary); font-size:15px; outline:none; margin-bottom:12px; font-family:'Inter',sans-serif; }
+        input:focus,textarea:focus { border-color:var(--accent); }
+        .btn { width:100%; padding:14px 24px; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; transition:0.3s; margin-bottom:8px; }
+        .btn-primary { background:linear-gradient(135deg,var(--accent),#5558e6); color:white; }
+        .btn-secondary { background:var(--bg-card); color:var(--text-primary); border:1px solid var(--border); }
+        .btn-success { background:linear-gradient(135deg,#059669,#10b981); color:white; }
+        .btn-danger { background:linear-gradient(135deg,#dc2626,#ef4444); color:white; }
+        .btn-warning { background:linear-gradient(135deg,#d97706,#f59e0b); color:#000; }
+        .btn-sm { width:auto; padding:8px 16px; font-size:13px; display:inline-block; }
+        .error-msg { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; padding:12px 16px; border-radius:10px; font-size:14px; margin-bottom:16px; }
+        .link { text-align:center; color:var(--accent); cursor:pointer; font-size:14px; margin-top:16px; }
+        .card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:24px; margin-bottom:16px; position:relative; overflow:hidden; }
+        .card-bg { position:absolute; inset:0; background-size:cover; background-position:center; opacity:0.15; z-index:0; }
+        .card-content { position:relative; z-index:1; }
+        .card-title { font-size:18px; font-weight:600; margin-bottom:8px; }
+        .card-meta { font-size:13px; color:var(--text-secondary); margin-bottom:12px; }
+        .option { display:flex; align-items:center; gap:12px; padding:14px 16px; background:var(--bg-secondary); border:2px solid var(--border); border-radius:10px; margin:8px 0; cursor:pointer; transition:0.3s; }
+        .option.selected { border-color:var(--accent); background:rgba(99,102,241,0.1); }
+        .option-radio { width:20px; height:20px; border:2px solid var(--text-secondary); border-radius:50%; flex-shrink:0; }
+        .option.selected .option-radio { border-color:var(--accent); background:var(--accent); }
+        .option.selected .option-radio::after { content:""; width:8px; height:8px; background:white; border-radius:50%; display:block; margin:4px; }
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+        .badge { display:inline-block; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+        .badge-success { background:rgba(16,185,129,0.2); color:#6ee7b7; }
+        .profile-avatar-container { position:relative; width:100px; height:100px; margin:0 auto 16px; }
+        .profile-avatar { width:100%; height:100%; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:40px; color:white; border:4px solid var(--accent); background:linear-gradient(135deg,var(--accent),#8b5cf6); }
+        .edit-profile-btn { position:absolute; top:-5px; right:-5px; width:32px; height:32px; background:var(--accent); border:2px solid var(--bg-secondary); border-radius:50%; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; color:white; z-index:5; }
+        .stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
+        .stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:16px; text-align:center; }
+        .stat-value { font-size:28px; font-weight:700; color:var(--accent); }
+        .stat-label { font-size:12px; color:var(--text-secondary); margin-top:4px; }
+        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:2000; }
+        .modal { background:var(--bg-secondary); border:1px solid var(--border); border-radius:24px; padding:32px; width:90%; max-width:560px; max-height:85vh; overflow-y:auto; }
+        .achievements-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+        .achievement-card { background:var(--bg-card); border:2px solid var(--border); border-radius:16px; padding:20px; text-align:center; }
+        .achievement-card.unlocked { border-color:var(--success); }
+        .achievement-card.locked { opacity:0.5; filter:grayscale(1); }
+        .achievement-icon { font-size:40px; margin-bottom:8px; }
+        .achievement-tabs { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+        .achievement-tab { padding:8px 14px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer; background:var(--bg-card); color:var(--text-secondary); border:1px solid var(--border); }
+        .achievement-tab.active { background:var(--accent); color:white; }
+        .theme-preview { padding:20px; border-radius:10px; margin:16px 0; text-align:center; min-height:100px; display:flex; align-items:center; justify-content:center; background-size:cover; color:white; font-weight:600; }
+        .image-option { height:80px; border-radius:10px; background-size:cover; cursor:pointer; border:2px solid transparent; }
+        .image-option.selected { border-color:var(--accent); }
+        .user-row { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--bg-secondary); border-radius:10px; margin:6px 0; gap:12px; }
+        .role-badge { padding:6px 14px; border-radius:20px; font-size:12px; font-weight:600; text-align:center; min-width:110px; }
+        .role-super { background:linear-gradient(135deg,#f59e0b,#d97706); color:#000; }
+        .role-admin { background:linear-gradient(135deg,#8b5cf6,#7c3aed); color:white; }
+        .role-user { background:var(--bg-card); color:var(--text-secondary); border:1px solid var(--border); }
+        .customization-panel { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:16px; }
+        .color-picker-row { display:flex; gap:10px; flex-wrap:wrap; margin:8px 0; }
+        .color-option { width:36px; height:36px; border-radius:50%; cursor:pointer; border:3px solid transparent; }
+        .color-option.active { border-color:white; box-shadow:0 0 12px currentColor; }
+        .avatar-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; }
+        .avatar-icon-option { width:44px; height:44px; border-radius:50%; cursor:pointer; border:3px solid transparent; display:flex; align-items:center; justify-content:center; font-size:22px; background:var(--bg-secondary); }
+        .avatar-icon-option.active { border-color:var(--accent); }
+        .border-style-option { padding:10px 16px; border-radius:20px; cursor:pointer; border:2px solid var(--border); font-size:13px; background:var(--bg-secondary); color:var(--text-secondary); }
+        .border-style-option.active { background:var(--accent); color:white; border-color:var(--accent); }
+        .preview-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:30px; text-align:center; margin-bottom:20px; }
+    </style>
+</head>
+<body id="mainBody">
+
+<!-- Кнопка языка на страницах регистрации/входа -->
+<div class="top-right-lang" id="topLangBtn" style="display:none;">
+    <button class="lang-btn-top" onclick="toggleLanguage()" id="langBtnTop">EN</button>
+</div>
+
+<div class="achievement-toast" id="achievementToast">
+    <button class="toast-close" onclick="hideToast()">✕</button>
+    <div class="achievement-toast-icon" id="toastIconEl">🏆</div>
+    <div>
+        <div class="achievement-toast-title" data-lang="ach_unlocked">ДОСТИЖЕНИЕ РАЗБЛОКИРОВАНО!</div>
+        <div class="achievement-toast-name" id="toastName"></div>
+        <div class="achievement-toast-desc" id="toastDesc"></div>
+    </div>
+</div>
+<div class="sparkles" id="sparklesContainer"></div>
+
+<div class="menu-btn" id="menuBtn" onclick="toggleSidebar()"><span></span></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2 data-lang="menu">Меню</h2>
+        <div class="header-controls">
+            <button class="lang-btn" onclick="toggleLanguage()" id="langBtn">EN</button>
+            <div class="theme-toggle" onclick="toggleTheme()">🌓</div>
+        </div>
+    </div>
+    <div class="sidebar-nav">
+        <div class="sidebar-nav-item active" data-page="profile" onclick="showPage('profile')"><span class="icon">👤</span><span data-lang="profile">Профиль</span></div>
+        <div class="sidebar-nav-item" data-page="polls" onclick="showPage('polls')"><span class="icon">📋</span><span data-lang="polls">Опросы</span></div>
+        <div class="sidebar-nav-item" data-page="achievements" onclick="showPage('achievements')"><span class="icon">🏆</span><span data-lang="achievements">Достижения</span></div>
+        <div class="sidebar-nav-item" data-page="dev" onclick="showPage('dev')" id="menuDevItem" style="display:none;"><span class="icon">⚙️</span><span data-lang="admin">Управление</span></div>
+    </div>
+    <div class="sidebar-footer"><button class="btn btn-secondary" onclick="logout()"><span data-lang="logout">🚪 Выйти</span></button></div>
+</div>
+
+<div class="main-content">
+    <div class="app" id="appContainer">
+        <div id="registerPage" class="hidden">
+            <h1 data-lang="reg_title">Создайте аккаунт</h1>
+            <p class="subtitle" data-lang="reg_sub">Присоединяйтесь к платформе опросов</p>
+            <input type="text" id="regName" data-lang-placeholder="name_ph" placeholder="Ваше имя">
+            <input type="password" id="regPass" data-lang-placeholder="pass_ph" placeholder="Придумайте пароль">
+            <div id="regError" class="error-msg hidden"></div>
+            <button class="btn btn-primary" onclick="register()"><span data-lang="reg_btn">Зарегистрироваться</span></button>
+            <p class="link" onclick="showLogin()"><span data-lang="has_acc">Уже есть аккаунт? Войти</span></p>
+        </div>
+        <div id="loginPage" class="hidden">
+            <h1 data-lang="log_title">С возвращением</h1>
+            <p class="subtitle" data-lang="log_sub">Войдите в свой аккаунт</p>
+            <input type="text" id="loginName" placeholder="Ваше имя"><input type="password" id="loginPass" placeholder="Ваш пароль">
+            <div id="loginError" class="error-msg hidden"></div>
+            <button class="btn btn-primary" onclick="login()"><span data-lang="log_btn">Войти</span></button>
+            <p class="link" onclick="showRegister()"><span data-lang="no_acc">Нет аккаунта? Зарегистрироваться</span></p>
+        </div>
+
+        <div id="mainPage" class="hidden">
+            <div id="profileSection">
+                <div style="text-align:center;padding:20px 0;">
+                    <div class="profile-avatar-container"><div class="profile-avatar" id="profileAvatar"></div><div class="edit-profile-btn" onclick="openCustomizationModal()">✎</div></div>
+                    <div style="font-size:20px;font-weight:600;" id="profileName"></div>
+                    <div style="font-size:14px;color:var(--text-secondary);margin-bottom:24px;" id="profileRole"></div>
+                    <div class="stats-row">
+                        <div class="stat-card"><div class="stat-value" id="statCompleted">0</div><div class="stat-label" data-lang="stat_done">Пройдено</div></div>
+                        <div class="stat-card"><div class="stat-value" id="statCreated">0</div><div class="stat-label" data-lang="stat_created">Создано</div></div>
+                        <div class="stat-card"><div class="stat-value" id="statAchievements">0</div><div class="stat-label" data-lang="stat_ach">Достижений</div></div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-bottom:24px;"><input type="text" id="newName" data-lang-placeholder="new_name_ph" placeholder="Новое имя" style="flex:1;"><button class="btn btn-primary btn-sm" onclick="changeUsername()"><span data-lang="save">💾</span></button></div>
+                    <h3 style="text-align:left;margin-bottom:16px;" data-lang="completed_polls">📋 Пройденные опросы</h3>
+                    <div id="profileCompletedPolls"></div>
+                </div>
+            </div>
+            <div id="pollsSection" class="hidden">
+                <div id="pollsList"></div>
+                <div id="thankYou" class="hidden" style="text-align:center;">
+                    <h2 data-lang="thanks">✨ Спасибо за ответы!</h2>
+                    <button class="btn btn-primary" onclick="backToPolls()"><span data-lang="back_btn">🏠 К опросам</span></button>
+                    <button class="btn btn-secondary" id="viewAnswersBtn" style="margin-top:12px;"><span data-lang="my_answers">📋 Мои ответы</span></button>
+                </div>
+                <div id="answersView" class="hidden">
+                    <h2 data-lang="your_answers">📋 Ваши ответы</h2>
+                    <div id="answersContent"></div>
+                    <button class="btn btn-primary" onclick="backToPolls()"><span data-lang="back_btn">🏠 К опросам</span></button>
+                </div>
+            </div>
+            <div id="achievementsSection" class="hidden">
+                <h2 style="text-align:center;margin-bottom:16px;" data-lang="ach_title">🏆 Достижения</h2>
+                <div class="achievement-tabs" id="achievementTabs"></div>
+                <div class="achievements-grid" id="achievementsGrid"></div>
+            </div>
+            <div id="devSection" class="hidden">
+                <button class="btn btn-success" onclick="showCreateForm()"><span data-lang="create_poll">➕ Создать опрос</span></button>
+                <div id="createForm" class="hidden" style="margin-top:20px;">
+                    <input type="text" id="pollTitle" data-lang-placeholder="poll_title_ph" placeholder="Название опроса" oninput="onTitleChange()">
+                    <div id="themePreview" class="theme-preview" style="background:var(--bg-card);"><span data-lang="enter_title">🎨 Введите название</span></div>
+                    <div id="imageSelectorBox" class="hidden"><p style="margin:10px 0;" data-lang="select_img">📸 Выберите изображение:</p><div id="imageGrid" class="grid-3"></div></div>
+                    <div id="questionsBox"></div>
+                    <button class="btn btn-secondary" onclick="addQuestionToCreate()"><span data-lang="add_q">➕ Добавить вопрос</span></button>
+                    <div class="grid-2" style="margin-top:16px;"><button class="btn btn-success" onclick="savePoll()"><span data-lang="save_poll_btn">💾 Сохранить опрос</span></button><button class="btn btn-secondary" onclick="hideCreateForm()"><span data-lang="cancel">Отмена</span></button></div>
+                </div>
+                <h2 style="margin-top:28px;" data-lang="polls_mgmt">📊 Управление опросами</h2><div id="devPolls"></div>
+                <h2 data-lang="users_list">👥 Пользователи</h2><div id="usersList"></div>
+                <div id="superAdminSection" class="hidden"><h2 data-lang="admins">👑 Управление админами</h2><div id="adminManagementList"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="customModal" class="modal-overlay hidden">
+    <div class="modal">
+        <h2 style="text-align:center;margin-bottom:20px;" data-lang="customize_title">🎨 Настройка профиля</h2>
+        <div class="preview-card"><div class="profile-avatar-container"><div class="profile-avatar" id="modalPreviewAvatar"></div></div><div style="font-size:20px;font-weight:600;" id="modalPreviewName"></div><div style="font-size:13px;color:var(--text-secondary);" data-lang="preview">Предпросмотр</div></div>
+        <div class="customization-panel"><h4 data-lang="avatar_icon">🐾 Аватар</h4><div class="avatar-grid" id="avatarIcons"></div></div>
+        <div class="customization-panel"><h4 data-lang="bg_color">🎨 Цвет фона</h4><div class="color-picker-row" id="avatarColors"></div></div>
+        <div class="customization-panel"><h4 data-lang="border_style">💎 Стиль рамки</h4><div class="color-picker-row" id="borderStyles"></div></div>
+        <div class="customization-panel" id="borderColorPanel"><h4 data-lang="border_color">🌈 Цвет рамки</h4><div class="color-picker-row" id="borderColors"></div></div>
+        <div class="customization-panel"><h4 data-lang="name_color">✏️ Цвет ника</h4><div class="color-picker-row" id="nameColors"></div></div>
+        <div class="grid-2"><button class="btn btn-primary" onclick="saveCustomization()"><span data-lang="save">💾 Сохранить</span></button><button class="btn btn-secondary" onclick="closeCustomModal()"><span data-lang="cancel">Отмена</span></button></div>
+    </div>
+</div>
+
+<div id="editModal" class="modal-overlay hidden">
+    <div class="modal"><h2 data-lang="edit_poll">✏️ Редактирование опроса</h2><div id="editFormContent"></div><div class="grid-2" style="margin-top:20px;"><button class="btn btn-success" onclick="saveEdit()"><span data-lang="save_edit_btn">💾 Сохранить</span></button><button class="btn btn-secondary" onclick="closeEdit()"><span data-lang="cancel">Отмена</span></button></div></div>
+</div>
+
+<script>
+// ========== ЯЗЫК ==========
+let currentLang = localStorage.getItem('lang') || 'ru';
+const translations = {
+    ru: {
+        menu: 'Меню', profile: 'Профиль', polls: 'Опросы', achievements: 'Достижения', admin: 'Управление', logout: '🚪 Выйти',
+        reg_title: 'Создайте аккаунт', reg_sub: 'Присоединяйтесь к платформе опросов', reg_btn: 'Зарегистрироваться',
+        has_acc: 'Уже есть аккаунт? Войти', log_title: 'С возвращением', log_sub: 'Войдите в свой аккаунт', log_btn: 'Войти',
+        no_acc: 'Нет аккаунта? Зарегистрироваться', stat_done: 'Пройдено', stat_created: 'Создано', stat_ach: 'Достижений',
+        save: '💾 Сохранить', cancel: 'Отмена', completed_polls: '📋 Пройденные опросы', thanks: '✨ Спасибо за ответы!',
+        back_btn: '🏠 К опросам', my_answers: '📋 Мои ответы', your_answers: '📋 Ваши ответы', ach_title: '🏆 Достижения',
+        create_poll: '➕ Создать опрос', add_q: '➕ Добавить вопрос', polls_mgmt: '📊 Управление опросами', users_list: '👥 Пользователи',
+        admins: '👑 Управление админами', customize_title: '🎨 Настройка профиля', preview: 'Предпросмотр',
+        avatar_icon: '🐾 Аватар', bg_color: '🎨 Цвет фона', border_style: '💎 Стиль рамки', border_color: '🌈 Цвет рамки', name_color: '✏️ Цвет ника',
+        edit_poll: '✏️ Редактирование опроса', enter_title: '🎨 Введите название', select_img: '📸 Выберите изображение:',
+        all: '🌟 Все', polls_cat: '🎯 Прохождение', create_cat: '✍️ Создание', variety_cat: '🎨 Разнообразие', speed_cat: '⚡ Скорость',
+        smart_cat: '🧠 Умник', social_cat: '👥 Популярность', secret_cat: '🔒 Секретные',
+        no_polls: 'Нет активных опросов', completed: '✅ Пройден', question: 'Вопрос', next: 'Далее ➡️', submit: '✅ Завершить',
+        select_answer: 'Выберите ответ!', ach_unlocked: 'ДОСТИЖЕНИЕ РАЗБЛОКИРОВАНО!',
+        min_sym: 'Минимум 2 символа', user_exists: 'Пользователь существует', not_found: 'Пользователь не найден', wrong_pass: 'Неверный пароль',
+        name_taken: 'Имя занято', name_changed: 'Имя изменено!', super_admin: '👑 Суперадмин', admin_role: '⚙️ Админ', user_role: '👤 Пользователь',
+        no_completed: 'Нет пройденных опросов', promote: 'Назначить', demote: 'Снять', edit_btn: '✏️', del_btn: '🗑️', delete_confirm: 'Удалить опрос?',
+        name_ph: 'Ваше имя', pass_ph: 'Придумайте пароль', new_name_ph: 'Новое имя', poll_title_ph: 'Название опроса',
+        saved: 'Сохранено!', not_changed: 'Без изменений', updated: 'Обновлено!', profile_updated: 'Профиль изменён',
+        save_poll_btn: '💾 Сохранить опрос', save_edit_btn: '💾 Сохранить',
+        question_ph: 'Текст вопроса', options_ph: 'Варианты ответа (каждый с новой строки)', remove_btn: 'Удалить',
+        ach_poll_1:'Первый шаг',ach_poll_1d:'Пройти 1 опрос',ach_poll_5:'Опытный',ach_poll_5d:'Пройти 5 опросов',ach_poll_10:'Эксперт',ach_poll_10d:'Пройти 10 опросов',
+        ach_poll_20:'Легенда',ach_poll_20d:'Пройти 20 опросов',ach_poll_50:'Мастер опросов',ach_poll_50d:'Пройти 50 опросов',ach_poll_100:'Непобедимый',ach_poll_100d:'Пройти 100 опросов',
+        ach_cr_1:'Творец',ach_cr_1d:'Создать 1 опрос',ach_cr_5:'Плодовитый',ach_cr_5d:'Создать 5 опросов',ach_cr_10:'Фабрика опросов',ach_cr_10d:'Создать 10 опросов',ach_cr_25:'Конструктор',ach_cr_25d:'Создать 25 опросов',
+        ach_th_3:'Коллекционер',ach_th_3d:'3 разные темы',ach_th_6:'Радуга',ach_th_6d:'6 разных тем',ach_nat:'Натуралист',ach_natd:'3 опроса о природе',ach_tech:'Техногик',ach_techd:'3 опроса о технологиях',
+        ach_spd:'Спринтер',ach_spdd:'3 опроса за день',ach_wk:'Еженедельный',ach_wkd:'5 опросов за неделю',ach_mar:'Марафонец',ach_mard:'10 опросов подряд',
+        ach_all:'Всезнайка',ach_alld:'Ответить на все',ach_q100:'Сотня',ach_q100d:'100 вопросов',ach_q500:'Энциклопедия',ach_q500d:'500 вопросов',
+        ach_pop:'Популярный',ach_popd:'Опрос с 20+ голосами',ach_vir:'Вирусный',ach_vird:'Опрос с 100+ голосами',
+        ach_sec:'Тайный агент',ach_secd:'Стать админом',ach_sup:'Верховный',ach_supd:'Стать суперадмином',ach_sty:'Стилист',ach_styd:'Настроить профиль',
+    },
+    en: {
+        menu: 'Menu', profile: 'Profile', polls: 'Polls', achievements: 'Achievements', admin: 'Admin', logout: '🚪 Logout',
+        reg_title: 'Create Account', reg_sub: 'Join the poll platform', reg_btn: 'Register',
+        has_acc: 'Already have an account? Login', log_title: 'Welcome Back', log_sub: 'Sign in to your account', log_btn: 'Login',
+        no_acc: 'No account? Register', stat_done: 'Completed', stat_created: 'Created', stat_ach: 'Achievements',
+        save: '💾 Save', cancel: 'Cancel', completed_polls: '📋 Completed Polls', thanks: '✨ Thank you!',
+        back_btn: '🏠 Back to Polls', my_answers: '📋 My Answers', your_answers: '📋 Your Answers', ach_title: '🏆 Achievements',
+        create_poll: '➕ Create Poll', add_q: '➕ Add Question', polls_mgmt: '📊 Manage Polls', users_list: '👥 Users',
+        admins: '👑 Manage Admins', customize_title: '🎨 Customize Profile', preview: 'Preview',
+        avatar_icon: '🐾 Avatar', bg_color: '🎨 Background', border_style: '💎 Border Style', border_color: '🌈 Border Color', name_color: '✏️ Name Color',
+        edit_poll: '✏️ Edit Poll', enter_title: '🎨 Enter Title', select_img: '📸 Select Image:',
+        all: '🌟 All', polls_cat: '🎯 Polls', create_cat: '✍️ Create', variety_cat: '🎨 Variety', speed_cat: '⚡ Speed',
+        smart_cat: '🧠 Smart', social_cat: '👥 Social', secret_cat: '🔒 Secret',
+        no_polls: 'No active polls', completed: '✅ Completed', question: 'Question', next: 'Next ➡️', submit: '✅ Submit',
+        select_answer: 'Select an answer!', ach_unlocked: 'ACHIEVEMENT UNLOCKED!',
+        min_sym: 'Min 2 symbols', user_exists: 'User exists', not_found: 'User not found', wrong_pass: 'Wrong password',
+        name_taken: 'Name taken', name_changed: 'Name changed!', super_admin: '👑 Super Admin', admin_role: '⚙️ Admin', user_role: '👤 User',
+        no_completed: 'No completed polls', promote: 'Promote', demote: 'Demote', edit_btn: '✏️', del_btn: '🗑️', delete_confirm: 'Delete poll?',
+        name_ph: 'Your name', pass_ph: 'Create password', new_name_ph: 'New name', poll_title_ph: 'Poll title',
+        saved: 'Saved!', not_changed: 'No changes', updated: 'Updated!', profile_updated: 'Profile updated',
+        save_poll_btn: '💾 Save Poll', save_edit_btn: '💾 Save',
+        question_ph: 'Question text', options_ph: 'Answer options (each on new line)', remove_btn: 'Remove',
+        ach_poll_1:'First Step',ach_poll_1d:'Complete 1 poll',ach_poll_5:'Experienced',ach_poll_5d:'Complete 5 polls',ach_poll_10:'Expert',ach_poll_10d:'Complete 10 polls',
+        ach_poll_20:'Legend',ach_poll_20d:'Complete 20 polls',ach_poll_50:'Master',ach_poll_50d:'Complete 50 polls',ach_poll_100:'Unbeatable',ach_poll_100d:'Complete 100 polls',
+        ach_cr_1:'Creator',ach_cr_1d:'Create 1 poll',ach_cr_5:'Prolific',ach_cr_5d:'Create 5 polls',ach_cr_10:'Factory',ach_cr_10d:'Create 10 polls',ach_cr_25:'Builder',ach_cr_25d:'Create 25 polls',
+        ach_th_3:'Collector',ach_th_3d:'3 different themes',ach_th_6:'Rainbow',ach_th_6d:'6 different themes',ach_nat:'Naturalist',ach_natd:'3 nature polls',ach_tech:'Tech Geek',ach_techd:'3 tech polls',
+        ach_spd:'Sprinter',ach_spdd:'3 polls a day',ach_wk:'Weekly',ach_wkd:'5 polls a week',ach_mar:'Marathon',ach_mard:'10 polls straight',
+        ach_all:'Know-it-all',ach_alld:'Answer all polls',ach_q100:'Century',ach_q100d:'100 questions',ach_q500:'Encyclopedia',ach_q500d:'500 questions',
+        ach_pop:'Popular',ach_popd:'Poll with 20+ votes',ach_vir:'Viral',ach_vird:'Poll with 100+ votes',
+        ach_sec:'Secret Agent',ach_secd:'Become admin',ach_sup:'Supreme',ach_supd:'Become super admin',ach_sty:'Stylist',ach_styd:'Customize profile',
+    }
+};
+
+function t(key) { return translations[currentLang]?.[key] || key; }
+
+function updateLangButtons() {
+    const txt = currentLang === 'ru' ? 'EN' : 'RU';
+    const btn1 = document.getElementById('langBtn');
+    const btn2 = document.getElementById('langBtnTop');
+    if (btn1) btn1.textContent = txt;
+    if (btn2) btn2.textContent = txt;
+}
+
+function toggleLanguage() {
+    currentLang = currentLang === 'ru' ? 'en' : 'ru';
+    localStorage.setItem('lang', currentLang);
+    updateLangButtons();
+    updateAllTexts();
+    if (currentUser) refreshCurrentPage();
+}
+
+function updateAllTexts() {
+    document.querySelectorAll('[data-lang]').forEach(el => {
+        const key = el.dataset.lang;
+        if (translations[currentLang]?.[key]) el.textContent = translations[currentLang][key];
+    });
+    document.querySelectorAll('[data-lang-placeholder]').forEach(el => {
+        const key = el.dataset.langPlaceholder;
+        if (translations[currentLang]?.[key]) el.placeholder = translations[currentLang][key];
+    });
+    document.querySelectorAll('.qText').forEach(el => { el.placeholder = t('question_ph'); });
+    document.querySelectorAll('.qOpts').forEach(el => { el.placeholder = t('options_ph'); });
+    document.querySelectorAll('.eqText').forEach(el => { el.placeholder = t('question_ph'); });
+    document.querySelectorAll('.eqOpts').forEach(el => { el.placeholder = t('options_ph'); });
+    const toastTitle = document.querySelector('.achievement-toast-title');
+    if (toastTitle) toastTitle.textContent = t('ach_unlocked');
+}
+
+function refreshCurrentPage() {
+    if (!document.getElementById('profileSection').classList.contains('hidden')) renderProfile();
+    else if (!document.getElementById('pollsSection').classList.contains('hidden')) { renderPolls(); }
+    else if (!document.getElementById('achievementsSection').classList.contains('hidden')) renderAchievements();
+    else if (!document.getElementById('devSection').classList.contains('hidden')) renderDev();
+}
+
+// ========== ДАННЫЕ ==========
+let users=[],polls=[],currentUser=null,votes={},visible=[],progress={},selectedOptions={};
+let editingPollId=null,userAnswers={},currentTheme=localStorage.getItem('theme')||'dark';
+let unlockedAchievements=[],toastTimer=null,achievementFilter='all',lastCompletedPoll=null;
+let selectedImageUrl=null,currentThemeImages=[];
+let profileCustomization={avatarIcon:'',avatarColor:'#6366f1',avatarColor2:'#8b5cf6',borderStyle:'default',borderColor:'#6366f1',nameColor:'#ffffff'};
+let tempCustomization={};
+
+try{users=JSON.parse(localStorage.getItem('u'))||[];polls=JSON.parse(localStorage.getItem('p'))||[];currentUser=localStorage.getItem('c')||null;votes=JSON.parse(localStorage.getItem('v'))||{};visible=JSON.parse(localStorage.getItem('vp'))||[];userAnswers=JSON.parse(localStorage.getItem('ua'))||{};unlockedAchievements=JSON.parse(localStorage.getItem('ach')||'[]');const s=JSON.parse(localStorage.getItem('cust')||'null');if(s)profileCustomization=s;}catch(e){}
+function saveAll(){localStorage.setItem('u',JSON.stringify(users));localStorage.setItem('p',JSON.stringify(polls));localStorage.setItem('c',currentUser||'');localStorage.setItem('v',JSON.stringify(votes));localStorage.setItem('vp',JSON.stringify(visible));localStorage.setItem('ua',JSON.stringify(userAnswers));localStorage.setItem('ach',JSON.stringify(unlockedAchievements));localStorage.setItem('cust',JSON.stringify(profileCustomization));localStorage.setItem('theme',currentTheme);}
+
+const animalIcons=['🐶','🐱','🐼','🐨','🐸','🦊','🐰','🐯','🐮','🐷','🐹','🐻','🦁','🐵','🐔','🐧','🦄','🐙'];
+const avatarColors=[{c1:'#6366f1',c2:'#8b5cf6'},{c1:'#3b82f6',c2:'#60a5fa'},{c1:'#10b981',c2:'#34d399'},{c1:'#f59e0b',c2:'#fbbf24'},{c1:'#ec4899',c2:'#f472b6'},{c1:'#ef4444',c2:'#f87171'},{c1:'#14b8a6',c2:'#2dd4bf'},{c1:'#1e1b4b',c2:'#7c3aed'}];
+const borderStyles=[{id:'default',n:'Обычная'},{id:'rainbow',n:'Радужная'},{id:'neon',n:'Неоновая'},{id:'galaxy',n:'Галактика'}];
+const borderColorOptions=['#6366f1','#3b82f6','#10b981','#f59e0b','#ec4899','#ef4444','#14b8a6','#8b5cf6','#00ff88','#ff8800','#ffffff'];
+const nameColors=[{c:'#ffffff'},{c:'#fbbf24'},{c:'#00ff88'},{c:'#c4b5fd'},{c:'#f9a8d4'},{c:'#93c5fd'}];
+
+function applyAvatarStyle(el,cust){if(!el)return;el.style.background=`linear-gradient(135deg,${cust.avatarColor},${cust.avatarColor2})`;el.textContent=cust.avatarIcon||(currentUser?currentUser.charAt(0).toUpperCase():'A');el.style.borderColor=cust.borderColor;el.style.boxShadow='none';el.className='profile-avatar';if(cust.borderStyle==='rainbow'){el.style.border='4px solid transparent';el.style.background=`linear-gradient(135deg,${cust.avatarColor},${cust.avatarColor2}) padding-box, linear-gradient(135deg,red,#ff0,#0f0,#0ff,#00f,#f0f) border-box`;}else if(cust.borderStyle==='neon'){el.style.borderColor='#00ff88';el.style.boxShadow='0 0 20px rgba(0,255,136,0.5)';}else if(cust.borderStyle==='galaxy'){el.style.borderColor='#8b5cf6';el.style.boxShadow='0 0 20px rgba(139,92,246,0.5)';}}
+function updateMainProfile(){applyAvatarStyle(document.getElementById('profileAvatar'),profileCustomization);document.getElementById('profileName').style.color=profileCustomization.nameColor;}
+function updateModalPreview(){applyAvatarStyle(document.getElementById('modalPreviewAvatar'),tempCustomization);document.getElementById('modalPreviewName').style.color=tempCustomization.nameColor;document.getElementById('modalPreviewName').textContent=currentUser||'User';}
+function openCustomizationModal(){tempCustomization={...profileCustomization};document.getElementById('customModal').classList.remove('hidden');renderCustomizationModal();updateModalPreview();}
+function closeCustomModal(){document.getElementById('customModal').classList.add('hidden');}
+function renderCustomizationModal(){const c=tempCustomization;document.getElementById('avatarIcons').innerHTML=animalIcons.map(icon=>`<div class="avatar-icon-option${icon===c.avatarIcon?' active':''}" onclick="selectAvatarIcon('${icon}')">${icon}</div>`).join('');document.getElementById('avatarColors').innerHTML=avatarColors.map(a=>`<div class="color-option${a.c1===c.avatarColor?' active':''}" style="background:linear-gradient(135deg,${a.c1},${a.c2});" onclick="selectAvatarColor('${a.c1}','${a.c2}')"></div>`).join('');document.getElementById('borderStyles').innerHTML=borderStyles.map(b=>`<div class="border-style-option${b.id===c.borderStyle?' active':''}" onclick="selectBorderStyle('${b.id}')">${b.n}</div>`).join('');document.getElementById('borderColorPanel').style.display=c.borderStyle==='default'?'block':'none';document.getElementById('borderColors').innerHTML=borderColorOptions.map(bc=>`<div class="color-option${bc===c.borderColor?' active':''}" style="background:${bc};" onclick="selectBorderColor('${bc}')"></div>`).join('');document.getElementById('nameColors').innerHTML=nameColors.map(n=>`<div class="color-option${n.c===c.nameColor?' active':''}" style="background:${n.c};" onclick="selectNameColor('${n.c}')"></div>`).join('');}
+function selectAvatarIcon(icon){tempCustomization.avatarIcon=icon;renderCustomizationModal();updateModalPreview();}
+function selectAvatarColor(c1,c2){tempCustomization.avatarColor=c1;tempCustomization.avatarColor2=c2;renderCustomizationModal();updateModalPreview();}
+function selectBorderStyle(id){tempCustomization.borderStyle=id;renderCustomizationModal();updateModalPreview();}
+function selectBorderColor(color){tempCustomization.borderColor=color;updateModalPreview();}
+function selectNameColor(color){tempCustomization.nameColor=color;updateModalPreview();}
+function saveCustomization(){const u=users.find(u=>u.name===currentUser);if(u){const wasChanged=JSON.stringify(u.customization)!==JSON.stringify(tempCustomization);profileCustomization={...tempCustomization};u.customization={...tempCustomization};saveAll();updateMainProfile();closeCustomModal();if(wasChanged&&!unlockedAchievements.includes('customize_profile')){unlockedAchievements.push('customize_profile');saveAll();showToast(t('ach_sty'),t('ach_styd'),'🎨');}else if(!wasChanged){showToast(t('saved'),t('not_changed'),'✅');}else{showToast(t('updated'),t('profile_updated'),'✅');}setTimeout(()=>hideToast(),3000);}}
+
+function spawnSparkles(){const c=document.getElementById('sparklesContainer');const e=['✨','🌟','💫','🎉','🎊','⭐','🔥','💎','🎯','🏅'];for(let i=0;i<30;i++){const s=document.createElement('div');s.className='sparkle';s.textContent=e[Math.floor(Math.random()*e.length)];s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';s.style.animationDelay=Math.random()*0.5+'s';s.style.fontSize=(20+Math.random()*30)+'px';c.appendChild(s);setTimeout(()=>s.remove(),1500);}}
+function showToast(name,desc,icon){clearTimeout(toastTimer);document.querySelector('.achievement-toast-title').textContent=t('ach_unlocked');document.getElementById('toastName').textContent=name;document.getElementById('toastDesc').textContent=desc;document.getElementById('toastIconEl').textContent=icon||'🏆';const toast=document.getElementById('achievementToast');toast.classList.remove('show');void toast.offsetWidth;toast.classList.add('show');spawnSparkles();toastTimer=setTimeout(()=>toast.classList.remove('show'),5000);}
+function hideToast(){clearTimeout(toastTimer);document.getElementById('achievementToast').classList.remove('show');}
+
+function drawIll(c,t,cl){const ctx=c.getContext('2d'),w=c.width,h=c.height;const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,cl[0]);g.addColorStop(1,cl[1]);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);return c.toDataURL('image/jpeg',0.8);}
+function genImgs(title,cl,t){const imgs=[];for(let i=0;i<3;i++){const c=document.createElement('canvas');c.width=600;c.height=400;imgs.push(drawIll(c,t,[adj(cl[0],i*25),adj(cl[1],i*25)]));}return imgs;}
+function adj(c,s){if(!c.startsWith('#'))return c;const r=Math.min(255,Math.max(0,parseInt(c.slice(1,3),16)+s)),g=Math.min(255,Math.max(0,parseInt(c.slice(3,5),16)+s)),b=Math.min(255,Math.max(0,parseInt(c.slice(5,7),16)+s));return`rgb(${r},${g},${b})`;}
+const ThemeAI={data:{'природ':{c:['#1b4332','#2d6a4f'],t:'nature'},'nature':{c:['#1b4332','#2d6a4f'],t:'nature'},'лес':{c:['#1a3a1a','#2d5a27'],t:'nature'},'forest':{c:['#1a3a1a','#2d5a27'],t:'nature'},'город':{c:['#1a1a2e','#2d2d44'],t:'city'},'city':{c:['#1a1a2e','#2d2d44'],t:'city'},'технолог':{c:['#0d1117','#1a1a2e'],t:'tech'},'tech':{c:['#0d1117','#1a1a2e'],t:'tech'}},gen(title){const t=title.toLowerCase();for(let k in this.data){if(t.includes(k)){const d=this.data[k];const imgs=genImgs(title,d.c,d.t);return{colors:d.c,images:imgs,image:imgs[0],keyword:k};}}let h=0;for(let i=0;i<title.length;i++)h=title.charCodeAt(i)+((h<<5)-h);const hue=Math.abs(h%360);const colors=[`hsl(${hue},50%,18%)`,`hsl(${hue},40%,28%)`];return{colors,images:genImgs(title,colors,'a'),image:genImgs(title,colors,'a')[0],keyword:'unique'};},apply(t){document.getElementById('mainBody').style.background=`linear-gradient(135deg,${t.colors[0]},${t.colors[1]})`;document.getElementById('mainBody').style.backgroundImage=`url('${t.image}')`;document.getElementById('mainBody').style.backgroundSize='cover';},reset(){document.getElementById('mainBody').style.background='';document.getElementById('mainBody').style.backgroundImage='';applyTheme();}};
+
+function applyTheme(){document.body.classList.toggle('light-theme',currentTheme==='light');}
+function toggleTheme(){currentTheme=currentTheme==='dark'?'light':'dark';applyTheme();saveAll();}
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('active');document.getElementById('menuBtn').classList.toggle('active');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('active');document.getElementById('menuBtn').classList.remove('active');}
+function showPage(page){closeSidebar();document.querySelectorAll('.sidebar-nav-item').forEach(i=>i.classList.toggle('active',i.dataset.page===page));['profileSection','pollsSection','achievementsSection','devSection'].forEach(id=>document.getElementById(id).classList.add('hidden'));if(page==='profile'){document.getElementById('profileSection').classList.remove('hidden');renderProfile();}else if(page==='polls'){document.getElementById('pollsSection').classList.remove('hidden');document.getElementById('thankYou').classList.add('hidden');document.getElementById('answersView').classList.add('hidden');progress={};selectedOptions={};ThemeAI.reset();renderPolls();}else if(page==='achievements'){document.getElementById('achievementsSection').classList.remove('hidden');renderAchievements();}else if(page==='dev'&&isAdmin()){document.getElementById('devSection').classList.remove('hidden');document.getElementById('superAdminSection').classList.toggle('hidden',!isSuperAdmin());renderDev();}}
+function getUserRole(u){if(!u)return'user';if(u.isSuperAdmin)return'super';if(u.isAdmin)return'admin';return'user';}
+function isSuperAdmin(){return users.find(u=>u.name===currentUser)?.isSuperAdmin;}
+function isAdmin(){const u=users.find(u=>u.name===currentUser);return u&&(u.isAdmin||u.isSuperAdmin);}
+
+function renderProfile(){const u=users.find(u=>u.name===currentUser);if(!u)return;if(u.customization)profileCustomization={...u.customization};document.getElementById('profileName').textContent=currentUser;const role=getUserRole(u);document.getElementById('profileRole').textContent=role==='super'?t('super_admin'):role==='admin'?t('admin_role'):t('user_role');document.getElementById('statCompleted').textContent=votes[currentUser]?.length||0;document.getElementById('statCreated').textContent=polls.filter(p=>p.created===currentUser).length;document.getElementById('statAchievements').textContent=unlockedAchievements.length;document.getElementById('newName').value=currentUser;const completed=polls.filter(p=>votes[currentUser]?.includes(p.id));document.getElementById('profileCompletedPolls').innerHTML=completed.length===0?`<p style="color:var(--text-secondary);">${t('no_completed')}</p>`:completed.map(p=>`<div class="card"><div class="card-bg" style="background-image:url('${p.theme?.image||''}');"></div><div class="card-content"><div class="card-title">${p.title}</div><span class="badge badge-success">${t('completed')}</span></div></div>`).join('');updateMainProfile();}
+function changeUsername(){const n=document.getElementById('newName').value.trim();if(n.length<2){alert(t('min_sym'));return;}if(users.find(u=>u.name===n&&u.name!==currentUser)){alert(t('name_taken'));return;}const u=users.find(u=>u.name===currentUser),old=currentUser;u.name=n;currentUser=n;if(votes[old]){votes[n]=votes[old];delete votes[old];}if(userAnswers[old]){userAnswers[n]=userAnswers[old];delete userAnswers[old];}polls.forEach(p=>{if(p.created===old)p.created=n;});saveAll();renderProfile();alert(t('name_changed'));}
+
+const achievementsList=[
+{id:'poll_1',n:'ach_poll_1',d:'ach_poll_1d',i:'🎯',cat:'polls',c:()=>(votes[currentUser]?.length||0)>=1},{id:'poll_5',n:'ach_poll_5',d:'ach_poll_5d',i:'🌟',cat:'polls',c:()=>(votes[currentUser]?.length||0)>=5},{id:'poll_10',n:'ach_poll_10',d:'ach_poll_10d',i:'👑',cat:'polls',c:()=>(votes[currentUser]?.length||0)>=10},{id:'poll_20',n:'ach_poll_20',d:'ach_poll_20d',i:'🏆',cat:'polls',c:()=>(votes[currentUser]?.length||0)>=20},{id:'poll_50',n:'ach_poll_50',d:'ach_poll_50d',i:'💎',cat:'polls',c:()=>(votes[currentUser]?.length||0)>=50},{id:'poll_100',n:'ach_poll_100',d:'ach_poll_100d',i:'🔥',cat:'polls',c:()=>(votes[currentUser]?.length||0)>=100},
+{id:'create_1',n:'ach_cr_1',d:'ach_cr_1d',i:'✍️',cat:'create',c:()=>polls.filter(p=>p.created===currentUser).length>=1},{id:'create_5',n:'ach_cr_5',d:'ach_cr_5d',i:'📝',cat:'create',c:()=>polls.filter(p=>p.created===currentUser).length>=5},{id:'create_10',n:'ach_cr_10',d:'ach_cr_10d',i:'🏭',cat:'create',c:()=>polls.filter(p=>p.created===currentUser).length>=10},{id:'create_25',n:'ach_cr_25',d:'ach_cr_25d',i:'🛠️',cat:'create',c:()=>polls.filter(p=>p.created===currentUser).length>=25},
+{id:'theme_3',n:'ach_th_3',d:'ach_th_3d',i:'🎨',cat:'variety',c:()=>{const th=polls.filter(p=>p.created===currentUser).map(p=>p.theme?.keyword).filter(Boolean);return new Set(th).size>=3;}},{id:'theme_6',n:'ach_th_6',d:'ach_th_6d',i:'🌈',cat:'variety',c:()=>{const th=polls.filter(p=>p.created===currentUser).map(p=>p.theme?.keyword).filter(Boolean);return new Set(th).size>=6;}},{id:'nature_lover',n:'ach_nat',d:'ach_natd',i:'🌿',cat:'variety',c:()=>polls.filter(p=>p.created===currentUser&&(p.theme?.keyword==='природ'||p.theme?.keyword==='лес'||p.theme?.keyword==='nature'||p.theme?.keyword==='forest')).length>=3},{id:'tech_guru',n:'ach_tech',d:'ach_techd',i:'💻',cat:'variety',c:()=>polls.filter(p=>p.created===currentUser&&(p.theme?.keyword==='технолог'||p.theme?.keyword==='tech')).length>=3},
+{id:'speed_daily',n:'ach_spd',d:'ach_spdd',i:'⚡',cat:'speed',c:()=>false},{id:'weekly_5',n:'ach_wk',d:'ach_wkd',i:'📅',cat:'speed',c:()=>false},{id:'marathon',n:'ach_mar',d:'ach_mard',i:'🏃',cat:'speed',c:()=>false},
+{id:'all_correct',n:'ach_all',d:'ach_alld',i:'🧠',cat:'smart',c:()=>{const ac=polls.filter(p=>visible.includes(p.id));return ac.length>0&&ac.every(p=>votes[currentUser]?.includes(p.id));}},{id:'questions_100',n:'ach_q100',d:'ach_q100d',i:'💯',cat:'smart',c:()=>{let t=0;polls.forEach(p=>{if(votes[currentUser]?.includes(p.id))t+=p.questions.length;});return t>=100;}},{id:'questions_500',n:'ach_q500',d:'ach_q500d',i:'📚',cat:'smart',c:()=>{let t=0;polls.forEach(p=>{if(votes[currentUser]?.includes(p.id))t+=p.questions.length;});return t>=500;}},
+{id:'popular_poll',n:'ach_pop',d:'ach_popd',i:'📈',cat:'social',c:()=>polls.filter(p=>p.created===currentUser).some(p=>{let t=0;p.questions.forEach(q=>t+=Object.values(q.votes).reduce((a,b)=>a+b,0));return t>=20;})},{id:'viral',n:'ach_vir',d:'ach_vird',i:'🚀',cat:'social',c:()=>polls.filter(p=>p.created===currentUser).some(p=>{let t=0;p.questions.forEach(q=>t+=Object.values(q.votes).reduce((a,b)=>a+b,0));return t>=100;})},
+{id:'secret_admin',n:'ach_sec',d:'ach_secd',i:'🕵️',cat:'secret',c:()=>isAdmin()},{id:'secret_super',n:'ach_sup',d:'ach_supd',i:'🔱',cat:'secret',c:()=>isSuperAdmin()},{id:'customize_profile',n:'ach_sty',d:'ach_styd',i:'🎨',cat:'secret',c:()=>false},
+];
+const catNames={all:'all',polls:'polls_cat',create:'create_cat',variety:'variety_cat',speed:'speed_cat',smart:'smart_cat',social:'social_cat',secret:'secret_cat'};
+
+function checkAndNotify(){const newly=achievementsList.filter(a=>a.c()&&!unlockedAchievements.includes(a.id));newly.forEach(a=>{unlockedAchievements.push(a.id);showToast(t(a.n),t(a.d),a.i);});if(newly.length>0)saveAll();}
+function renderAchievements(){document.getElementById('achievementTabs').innerHTML=Object.entries(catNames).map(([k,l])=>`<div class="achievement-tab${achievementFilter===k?' active':''}" onclick="achievementFilter='${k}';renderAchievements()">${t(l)}</div>`).join('');const filtered=achievementFilter==='all'?achievementsList:achievementsList.filter(a=>a.cat===achievementFilter);document.getElementById('achievementsGrid').innerHTML=filtered.map(a=>{const u=unlockedAchievements.includes(a.id);return`<div class="achievement-card ${u?'unlocked':'locked'}"><div class="achievement-icon">${a.i}</div><div style="font-weight:600;">${t(a.n)}</div><div style="font-size:12px;color:var(--text-secondary);">${t(a.d)}</div></div>`;}).join('');}
+
+function showRegister(){
+    document.getElementById('registerPage').classList.remove('hidden');
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('mainPage').classList.add('hidden');
+    document.getElementById('menuBtn').style.display = 'none';
+    document.getElementById('topLangBtn').style.display = 'block';
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+    updateLangButtons();
+}
+function showLogin(){
+    document.getElementById('registerPage').classList.add('hidden');
+    document.getElementById('loginPage').classList.remove('hidden');
+    document.getElementById('mainPage').classList.add('hidden');
+    document.getElementById('menuBtn').style.display = 'none';
+    document.getElementById('topLangBtn').style.display = 'block';
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+    updateLangButtons();
+}
+function showMain(){
+    document.getElementById('registerPage').classList.add('hidden');
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('mainPage').classList.remove('hidden');
+    document.getElementById('menuBtn').style.display = 'flex';
+    document.getElementById('topLangBtn').style.display = 'none';
+    document.getElementById('menuDevItem').style.display = isAdmin() ? 'flex' : 'none';
+    updateAllTexts();
+    updateLangButtons();
+    showPage('profile');
+}
+function logout(){currentUser=null;saveAll();closeSidebar();document.getElementById('menuBtn').style.display='none';showRegister();}
+
+function register(){const n=document.getElementById('regName').value.trim(),p=document.getElementById('regPass').value.trim(),e=document.getElementById('regError');if(n.length<2){e.textContent=t('min_sym');e.classList.remove('hidden');return;}if(p.length<2){e.textContent=t('min_sym');e.classList.remove('hidden');return;}if(users.find(u=>u.name===n)){e.textContent=t('user_exists');e.classList.remove('hidden');return;}e.classList.add('hidden');users.push({name:n,pass:p,isSuperAdmin:p==='12345',isAdmin:false,customization:{...profileCustomization}});currentUser=n;if(!votes[n])votes[n]=[];if(!userAnswers[n])userAnswers[n]={};saveAll();document.getElementById('regName').value='';document.getElementById('regPass').value='';showMain();}
+function login(){const n=document.getElementById('loginName').value.trim(),p=document.getElementById('loginPass').value.trim(),e=document.getElementById('loginError');const u=users.find(u=>u.name===n);if(!u){e.textContent=t('not_found');e.classList.remove('hidden');return;}if(u.pass!==p){e.textContent=t('wrong_pass');e.classList.remove('hidden');return;}e.classList.add('hidden');currentUser=n;if(!votes[n])votes[n]=[];if(!userAnswers[n])userAnswers[n]={};if(u.customization)profileCustomization={...u.customization};saveAll();document.getElementById('loginName').value='';document.getElementById('loginPass').value='';showMain();}
+
+function renderPolls(){const l=document.getElementById('pollsList'),vd=votes[currentUser]||[],ac=polls.filter(p=>visible.includes(p.id));if(ac.length===0){l.innerHTML=`<p style="text-align:center;color:var(--text-secondary);">${t('no_polls')}</p>`;return;}let h='';ac.forEach(p=>{const img=p.theme?.image||'';if(vd.includes(p.id)){h+=`<div class="card"><div class="card-bg" style="background-image:url('${img}');"></div><div class="card-content"><div class="card-title">${p.title}</div><span class="badge badge-success">${t('completed')}</span><button class="btn btn-secondary btn-sm" onclick="viewMyAnswers('${p.id}')" style="margin-top:12px;">${t('my_answers')}</button></div></div>`;return;}if(!progress[p.id])progress[p.id]=0;const qi=progress[p.id],q=p.questions[qi];if(p.theme&&qi===0)ThemeAI.apply(p.theme);h+=`<div class="card"><div class="card-bg" style="background-image:url('${img}');"></div><div class="card-content"><div class="card-title">${p.title}</div><div class="card-meta">${t('question')} ${qi+1}/${p.questions.length}</div><p style="font-weight:500;">${q.text}</p>`;q.options.forEach((o,oi)=>{h+=`<div class="option" id="opt_${p.id}_${qi}_${oi}" onclick="selectOpt('${p.id}',${qi},${oi})"><div class="option-radio"></div><span>${o}</span></div>`;});h+=qi<p.questions.length-1?`<button class="btn btn-primary" onclick="nextQ('${p.id}')">${t('next')}</button>`:`<button class="btn btn-success" onclick="finishPoll('${p.id}')">${t('submit')}</button>`;h+=`</div></div>`;});l.innerHTML=h;}
+function selectOpt(pid,qi,oi){document.querySelectorAll(`[id^="opt_${pid}_${qi}"]`).forEach(e=>e.classList.remove('selected'));document.getElementById(`opt_${pid}_${qi}_${oi}`)?.classList.add('selected');selectedOptions[`${pid}_${qi}`]=oi;}
+function nextQ(pid){const qi=progress[pid],k=`${pid}_${qi}`;if(selectedOptions[k]===undefined){alert(t('select_answer'));return;}if(!userAnswers[currentUser])userAnswers[currentUser]={};if(!userAnswers[currentUser][pid])userAnswers[currentUser][pid]={};userAnswers[currentUser][pid][qi]=selectedOptions[k];polls.find(p=>p.id===pid).questions[qi].votes[selectedOptions[k]]=(polls.find(p=>p.id===pid).questions[qi].votes[selectedOptions[k]]||0)+1;progress[pid]=qi+1;delete selectedOptions[k];saveAll();renderPolls();}
+function finishPoll(pid){const qi=progress[pid],k=`${pid}_${qi}`;if(selectedOptions[k]===undefined){alert(t('select_answer'));return;}if(!userAnswers[currentUser])userAnswers[currentUser]={};if(!userAnswers[currentUser][pid])userAnswers[currentUser][pid]={};userAnswers[currentUser][pid][qi]=selectedOptions[k];polls.find(p=>p.id===pid).questions[qi].votes[selectedOptions[k]]=(polls.find(p=>p.id===pid).questions[qi].votes[selectedOptions[k]]||0)+1;if(!votes[currentUser])votes[currentUser]=[];votes[currentUser].push(pid);lastCompletedPoll=pid;delete progress[pid];delete selectedOptions[k];saveAll();checkAndNotify();ThemeAI.reset();document.getElementById('pollsList').innerHTML='';document.getElementById('thankYou').classList.remove('hidden');document.getElementById('viewAnswersBtn').onclick=()=>viewMyAnswers(lastCompletedPoll);}
+function viewMyAnswers(pid){const p=polls.find(p=>p.id===pid);if(!p)return;const a=userAnswers[currentUser]?.[pid]||{};document.getElementById('pollsList').innerHTML='';document.getElementById('thankYou').classList.add('hidden');document.getElementById('answersView').classList.remove('hidden');let h=`<div class="card"><div class="card-title">${p.title}</div>`;p.questions.forEach((q,qi)=>{h+=`<p style="font-weight:500;margin-top:12px;">${q.text}</p>`;q.options.forEach((o,oi)=>{h+=`<div class="option${oi===a[qi]?' selected':''}" style="opacity:${oi===a[qi]?1:0.5}"><div class="option-radio"></div><span>${oi===a[qi]?'✅ ':''}${o}</span></div>`;});});h+=`</div>`;document.getElementById('answersContent').innerHTML=h;}
+function backToPolls(){document.getElementById('thankYou').classList.add('hidden');document.getElementById('answersView').classList.add('hidden');document.getElementById('pollsList').classList.remove('hidden');renderPolls();}
+
+function onTitleChange(){const t=document.getElementById('pollTitle').value.trim(),pr=document.getElementById('themePreview'),b=document.getElementById('imageSelectorBox'),g=document.getElementById('imageGrid');if(!t){pr.style.background='var(--bg-card)';pr.innerHTML=t('enter_title');b.classList.add('hidden');return;}const th=ThemeAI.gen(t);currentThemeImages=th.images;selectedImageUrl=th.image;pr.style.background=`linear-gradient(135deg,${th.colors[0]}cc,${th.colors[1]}cc),url('${th.image}') center/cover`;pr.innerHTML='';b.classList.remove('hidden');g.innerHTML='';th.images.forEach((img,i)=>{const d=document.createElement('div');d.className='image-option';d.style.backgroundImage=`url('${img}')`;if(i===0)d.classList.add('selected');d.onclick=()=>{document.querySelectorAll('#imageGrid .image-option').forEach(e=>e.classList.remove('selected'));d.classList.add('selected');selectedImageUrl=img;pr.style.background=`linear-gradient(135deg,${th.colors[0]}cc,${th.colors[1]}cc),url('${img}') center/cover`;};g.appendChild(d);});}
+function showCreateForm(){document.getElementById('createForm').classList.remove('hidden');document.getElementById('questionsBox').innerHTML='';document.getElementById('pollTitle').value='';document.getElementById('imageSelectorBox').classList.add('hidden');addQuestionToCreate();}
+function hideCreateForm(){document.getElementById('createForm').classList.add('hidden');ThemeAI.reset();}
+function addQuestionToCreate(){const d=document.createElement('div');d.style.cssText='background:var(--bg-secondary);padding:16px;border-radius:12px;margin:10px 0;';d.innerHTML=`<input type="text" class="qText" placeholder="${t('question_ph')}"><textarea class="qOpts" placeholder="${t('options_ph')}" rows="2"></textarea><button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">${t('remove_btn')}</button>`;document.getElementById('questionsBox').appendChild(d);}
+function savePoll(){const title=document.getElementById('pollTitle').value.trim();if(!title){alert(t('poll_title_ph'));return;}const qs=[];document.querySelectorAll('#questionsBox > div').forEach(d=>{const tx=d.querySelector('.qText').value.trim(),o=d.querySelector('.qOpts').value.split('\n').filter(l=>l.trim());if(tx&&o.length>=2){const v={};o.forEach((_,i)=>v[i]=0);qs.push({text:tx,options:o,votes:v});}});if(qs.length===0){alert(t('add_q'));return;}const th=ThemeAI.gen(title);if(selectedImageUrl)th.image=selectedImageUrl;polls.push({id:'p_'+Date.now(),title,questions:qs,created:currentUser,theme:th});visible.push(polls[polls.length-1].id);saveAll();checkAndNotify();hideCreateForm();renderDev();}
+function editPoll(pid){const p=polls.find(p=>p.id===pid);if(!p)return;editingPollId=pid;let h=`<input type="text" id="editTitle" value="${p.title}"><div id="editQuestionsBox">`;p.questions.forEach(q=>{h+=`<div style="background:var(--bg-secondary);padding:16px;border-radius:12px;margin:10px 0;"><input type="text" class="eqText" value="${q.text}" placeholder="${t('question_ph')}"><textarea class="eqOpts" rows="2" placeholder="${t('options_ph')}">${q.options.join('\n')}</textarea><button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">${t('remove_btn')}</button></div>`;});h+=`</div><button class="btn btn-secondary btn-sm" onclick="addEditQuestion()">+ ${t('add_q')}</button>`;document.getElementById('editFormContent').innerHTML=h;document.getElementById('editModal').classList.remove('hidden');}
+function addEditQuestion(){const d=document.createElement('div');d.style.cssText='background:var(--bg-secondary);padding:16px;border-radius:12px;margin:10px 0;';d.innerHTML=`<input type="text" class="eqText" placeholder="${t('question_ph')}"><textarea class="eqOpts" placeholder="${t('options_ph')}" rows="2"></textarea><button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">${t('remove_btn')}</button>`;document.getElementById('editQuestionsBox').appendChild(d);}
+function saveEdit(){if(!editingPollId)return;const p=polls.find(p=>p.id===editingPollId);const title=document.getElementById('editTitle').value.trim();if(!title){alert(t('poll_title_ph'));return;}const qs=[];document.querySelectorAll('#editQuestionsBox > div').forEach(d=>{const tx=d.querySelector('.eqText').value.trim(),o=d.querySelector('.eqOpts').value.split('\n').filter(l=>l.trim());if(tx&&o.length>=2){const v={};o.forEach((_,i)=>v[i]=0);qs.push({text:tx,options:o,votes:v});}});if(qs.length===0){alert(t('add_q'));return;}p.title=title;p.questions=qs;p.theme=ThemeAI.gen(title);saveAll();closeEdit();renderDev();}
+function closeEdit(){document.getElementById('editModal').classList.add('hidden');editingPollId=null;}
+function toggleAdmin(un){if(!isSuperAdmin())return;const u=users.find(u=>u.name===un);if(!u||u.isSuperAdmin)return;u.isAdmin=!u.isAdmin;saveAll();renderDev();}
+function renderDev(){
+document.getElementById('usersList').innerHTML=users.map(u=>{const r=getUserRole(u);let b=r==='super'?'<span class="role-badge role-super">'+t('super_admin')+'</span>':r==='admin'?'<span class="role-badge role-admin">'+t('admin_role')+'</span>':'<span class="role-badge role-user">'+t('user_role')+'</span>';return`<div class="user-row"><span>${u.name}</span>${b}</div>`;}).join('');
+document.getElementById('devPolls').innerHTML=polls.map(p=>`<div class="card"><div class="card-title">${p.title}</div><div class="card-meta">${p.questions.length} ${t('question').toLowerCase()}</div><div class="grid-2" style="margin-top:8px;"><button class="btn btn-warning btn-sm" onclick="editPoll('${p.id}')">${t('edit_btn')}</button><button class="btn btn-danger btn-sm" onclick="delPoll('${p.id}')">${t('del_btn')}</button></div></div>`).join('');
+if(isSuperAdmin()){document.getElementById('adminManagementList').innerHTML=users.map(u=>{const r=getUserRole(u);let btn=r==='super'?'':r==='admin'?`<button class="btn btn-danger btn-sm" onclick="toggleAdmin('${u.name}')">${t('demote')}</button>`:`<button class="btn btn-primary btn-sm" onclick="toggleAdmin('${u.name}')">${t('promote')}</button>`;return`<div class="user-row"><span>${u.name}</span>${btn}</div>`;}).join('');}
+}
+function delPoll(id){if(confirm(t('delete_confirm'))){polls=polls.filter(p=>p.id!==id);visible=visible.filter(v=>v!==id);saveAll();renderDev();}}
+
+applyTheme();
+updateLangButtons();
+if(currentUser&&users.find(u=>u.name===currentUser)){showMain();document.getElementById('menuBtn').style.display='flex';}
+else{currentUser=null;saveAll();showRegister();document.getElementById('menuBtn').style.display='none';}
+</script>
+</body>
+</html>
